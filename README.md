@@ -5,11 +5,21 @@ Composição de chamadas a APIs externas para TypeScript/Node.js — **fan-out, 
 Gering resolve, de forma consistente, o que todo projeto reescreve do zero: orquestrar várias chamadas a serviços externos com resiliência e tipos honestos.
 
 ```ts
+import { task, parallel } from 'gering-flow'
+
 const [previsao, qualidadeAr] = await parallel([
   task(() => openSky.getForecast(cidade)),
   task(() => airIndex.getAQI(cidade)),
 ]).unwrap()
 ```
+
+## Instalação
+
+```bash
+npm install gering-flow
+```
+
+Publicado como ESM, com tipos incluídos. Requer Node ≥ 20.
 
 ## Princípios de design
 
