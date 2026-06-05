@@ -4,59 +4,59 @@ import { race } from '../../src/combinators/race.js'
 import { task } from '../../src/core/task.js'
 
 describe('race', () => {
-  it('o mais rápido vence', async () => {
+  it('the fastest one wins', async () => {
     const value = await race([
       task(async () => {
         await new Promise((r) => setTimeout(r, 50))
-        return 'lento'
+        return 'slow'
       }),
       task(async () => {
         await new Promise((r) => setTimeout(r, 5))
-        return 'rápido'
+        return 'fast'
       }),
     ]).unwrap()
-    assert.equal(value, 'rápido')
+    assert.equal(value, 'fast')
   })
 
-  it('um Err rápido vence um Ok lento (vence por velocidade, não sucesso)', async () => {
+  it('a fast Err beats a slow Ok (wins by speed, not success)', async () => {
     const r = await race([
       task<string>(async () => {
-        await new Promise((_r, rej) => setTimeout(() => rej(new Error('rápido-erro')), 5))
-        return 'nunca'
+        await new Promise((_r, rej) => setTimeout(() => rej(new Error('fast-error')), 5))
+        return 'never'
       }),
       task(async () => {
         await new Promise((r) => setTimeout(r, 50))
-        return 'lento-ok'
+        return 'slow-ok'
       }),
     ]).run()
     assert.equal(r.isErr(), true)
-    assert.equal(r.unwrapErr().message, 'rápido-erro')
+    assert.equal(r.unwrapErr().message, 'fast-error')
   })
 
-  it('cancela os perdedores via signal', async () => {
-    let perdedorAbortado = false
+  it('cancels the losers via signal', async () => {
+    let loserAborted = false
     await race([
       task(async () => {
         await new Promise((r) => setTimeout(r, 5))
-        return 'vencedor'
+        return 'winner'
       }),
       task(
         (signal) =>
           new Promise<string>((resolve) => {
-            const id = setTimeout(() => resolve('perdedor'), 100)
+            const id = setTimeout(() => resolve('loser'), 100)
             signal?.addEventListener('abort', () => {
               clearTimeout(id)
-              perdedorAbortado = true
+              loserAborted = true
             })
           }),
       ),
     ]).unwrap()
-    // dá um tick para o abort propagar
+    // give a tick for the abort to propagate
     await new Promise((r) => setTimeout(r, 10))
-    assert.equal(perdedorAbortado, true)
+    assert.equal(loserAborted, true)
   })
 
-  it('lança em array vazio', () => {
-    assert.throws(() => race([]), /ao menos um/)
+  it('throws on an empty array', () => {
+    assert.throws(() => race([]), /at least one/)
   })
 })

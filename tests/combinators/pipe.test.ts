@@ -4,36 +4,36 @@ import { pipe } from '../../src/combinators/pipe.js'
 import { task } from '../../src/core/task.js'
 
 describe('pipe', () => {
-  it('passa o valor de um passo para o próximo', async () => {
+  it('passes the value from one step to the next', async () => {
     const out = await pipe(
       task(async () => 2),
       (n) => task(async () => n * 10),
-      (n) => task(async () => `valor=${n}`),
+      (n) => task(async () => `value=${n}`),
     ).unwrap()
-    assert.equal(out, 'valor=20')
+    assert.equal(out, 'value=20')
   })
 
-  it('um único elemento se comporta como o próprio task', async () => {
-    const out = await pipe(task(async () => 'só')).unwrap()
-    assert.equal(out, 'só')
+  it('a single element behaves like the task itself', async () => {
+    const out = await pipe(task(async () => 'only')).unwrap()
+    assert.equal(out, 'only')
   })
 
-  it('short-circuit no primeiro Err (passos seguintes não rodam)', async () => {
-    let terceiroRodou = false
+  it('short-circuits on the first Err (following steps do not run)', async () => {
+    let thirdRan = false
     const r = await pipe(
       task(async () => 1),
       () =>
         task<number>(async () => {
-          throw new Error('passo 2')
+          throw new Error('step 2')
         }),
       (n) =>
         task(async () => {
-          terceiroRodou = true
+          thirdRan = true
           return n
         }),
     ).run()
     assert.equal(r.isErr(), true)
-    assert.equal(r.unwrapErr().message, 'passo 2')
-    assert.equal(terceiroRodou, false)
+    assert.equal(r.unwrapErr().message, 'step 2')
+    assert.equal(thirdRan, false)
   })
 })

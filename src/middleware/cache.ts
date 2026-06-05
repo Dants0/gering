@@ -1,18 +1,19 @@
 /**
- * withCache — memoiza o resultado de sucesso do Task por uma janela de TTL.
+ * withCache — memoizes the Task's success result for a TTL window.
  *
- * Só `Ok` é cacheado; `Err` sempre repassa para uma nova execução (não faz
- * sentido fixar uma falha transitória). O store vive no escopo do middleware,
- * então cada `.cache()` é um cache isolado e independente — sem estado global.
+ * Only `Ok` is cached; `Err` always passes through to a fresh execution (it
+ * makes no sense to pin a transient failure). The store lives in the
+ * middleware's scope, so each `.cache()` is an isolated, independent cache —
+ * no global state.
  */
 
 import { type Result, ok } from '../core/result.js'
 import type { Task } from '../core/task.js'
 
 export interface CacheOptions {
-  /** Tempo de vida da entrada, em ms. */
+  /** Entry's time-to-live, in ms. */
   ttl: number
-  /** Chave lógica do recurso. Padrão: 'default'. */
+  /** Logical key for the resource. Default: 'default'. */
   key?: string
 }
 

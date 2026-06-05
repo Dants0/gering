@@ -4,48 +4,48 @@ import { fallback } from '../../src/combinators/fallback.js'
 import { task } from '../../src/core/task.js'
 
 describe('fallback', () => {
-  it('devolve o primeiro Ok e para (short-circuit)', async () => {
-    let cacheRodou = false
+  it('returns the first Ok and stops (short-circuit)', async () => {
+    let cacheRan = false
     const value = await fallback([
       task<string>(async () => {
-        throw new Error('primário fora')
+        throw new Error('primary down')
       }),
-      task(async () => 'do secundário'),
+      task(async () => 'from secondary'),
       task(async () => {
-        cacheRodou = true
-        return 'do cache'
+        cacheRan = true
+        return 'from cache'
       }),
     ]).unwrap()
-    assert.equal(value, 'do secundário')
-    assert.equal(cacheRodou, false)
+    assert.equal(value, 'from secondary')
+    assert.equal(cacheRan, false)
   })
 
-  it('o primeiro Ok já curto-circuita os demais', async () => {
-    let segundoRodou = false
+  it('the first Ok already short-circuits the rest', async () => {
+    let secondRan = false
     const value = await fallback([
-      task(async () => 'primário'),
+      task(async () => 'primary'),
       task(async () => {
-        segundoRodou = true
-        return 'secundário'
+        secondRan = true
+        return 'secondary'
       }),
     ]).unwrap()
-    assert.equal(value, 'primário')
-    assert.equal(segundoRodou, false)
+    assert.equal(value, 'primary')
+    assert.equal(secondRan, false)
   })
 
-  it('todos falham => último Err', async () => {
+  it('all fail => last Err', async () => {
     const r = await fallback([
       task<string>(async () => {
-        throw new Error('falha 1')
+        throw new Error('failure 1')
       }),
       task<string>(async () => {
-        throw new Error('falha 2 final')
+        throw new Error('failure 2 final')
       }),
     ]).run()
-    assert.equal(r.unwrapErr().message, 'falha 2 final')
+    assert.equal(r.unwrapErr().message, 'failure 2 final')
   })
 
-  it('lança em array vazio', () => {
-    assert.throws(() => fallback([]), /ao menos um/)
+  it('throws on an empty array', () => {
+    assert.throws(() => fallback([]), /at least one/)
   })
 })

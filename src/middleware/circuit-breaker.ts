@@ -1,30 +1,31 @@
 /**
- * withCircuitBreaker — protege um serviço instável falhando rápido.
+ * withCircuitBreaker — protects an unstable service by failing fast.
  *
- * Máquina de estados (estado isolado por instância, no closure):
- *   closed    → operação normal. Conta falhas consecutivas.
- *   open      → `threshold` falhas atingido: rejeita na hora (CircuitOpenError),
- *               sem chamar o serviço, por `halfOpenAfter` ms.
- *   half-open → passado o cooldown, deixa UMA tentativa passar. Se ok → closed;
- *               se falha → open de novo.
+ * State machine (state isolated per instance, in the closure):
+ *   closed    → normal operation. Counts consecutive failures.
+ *   open      → `threshold` failures reached: rejects immediately
+ *               (CircuitOpenError), without calling the service, for
+ *               `halfOpenAfter` ms.
+ *   half-open → after the cooldown, lets ONE attempt through. If ok → closed;
+ *               if it fails → open again.
  */
 
 import { type Result, err } from '../core/result.js'
 import type { Task } from '../core/task.js'
 
 export interface CircuitBreakerOptions {
-  /** Falhas consecutivas para abrir o circuito. Padrão: 5. */
+  /** Consecutive failures to open the circuit. Default: 5. */
   threshold?: number
-  /** Tempo aberto antes de tentar half-open, em ms. Padrão: 10000. */
+  /** Time open before trying half-open, in ms. Default: 10000. */
   halfOpenAfter?: number
-  /** Callback disparado quando o circuito abre (observabilidade). */
+  /** Callback fired when the circuit opens (observability). */
   onOpen?: () => void
 }
 
-/** Erro retornado quando o circuito está aberto (fail-fast). */
+/** Error returned when the circuit is open (fail-fast). */
 export class CircuitOpenError extends Error {
   override readonly name = 'CircuitOpenError'
-  constructor(message = 'Circuito aberto') {
+  constructor(message = 'Circuit open') {
     super(message)
   }
 }

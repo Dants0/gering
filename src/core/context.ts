@@ -1,23 +1,23 @@
 /**
- * context — primitivos de cancelamento compartilhados.
+ * context — shared cancellation primitives.
  *
- * Mora aqui (e não em task.ts) para que o builder e os middlewares dependam de
- * um módulo comum, sem ciclo de import: task.ts → middleware → context, todos
- * apontando "para baixo".
+ * Lives here (and not in task.ts) so that the builder and the middlewares depend
+ * on a common module, with no import cycle: task.ts → middleware → context, all
+ * pointing "downward".
  */
 
 import { type Result, err } from './result.js'
-import type { Task } from './task.js' // type-only: apagado em runtime, sem ciclo
+import type { Task } from './task.js' // type-only: erased at runtime, no cycle
 
-/** Erro lançado/retornado quando um Task é cancelado via AbortSignal. */
+/** Error thrown/returned when a Task is canceled via AbortSignal. */
 export class AbortError extends Error {
   override readonly name = 'AbortError'
-  constructor(message = 'Task cancelado') {
+  constructor(message = 'Task canceled') {
     super(message)
   }
 }
 
-/** Promessa de espera cancelável por AbortSignal. */
+/** A wait promise cancelable by an AbortSignal. */
 export function wait(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     if (signal?.aborted) return reject(new AbortError())
@@ -34,8 +34,8 @@ export function wait(ms: number, signal?: AbortSignal): Promise<void> {
 }
 
 /**
- * Cria um AbortController filho que aborta junto com o pai (se houver).
- * `release` remove o listener — chame no finally para não vazar.
+ * Creates a child AbortController that aborts together with the parent (if any).
+ * `release` removes the listener — call it in a finally to avoid leaks.
  */
 export function linkSignal(parent?: AbortSignal): {
   controller: AbortController
@@ -53,8 +53,9 @@ export function linkSignal(parent?: AbortSignal): {
 }
 
 /**
- * Executa um Task com guarda: um `throw` inesperado (o contrato diz que um Task
- * devolve Result e não lança) é capturado como Err em vez de rejeitar a Promise.
+ * Runs a Task with a guard: an unexpected `throw` (the contract says a Task
+ * returns a Result and doesn't throw) is captured as Err instead of rejecting
+ * the Promise.
  */
 export async function safeRun<T, E>(t: Task<T, E>, signal?: AbortSignal): Promise<Result<T, E>> {
   try {

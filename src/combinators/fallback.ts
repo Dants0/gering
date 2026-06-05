@@ -1,19 +1,19 @@
 /**
- * fallback — cadeia de degradação.
+ * fallback — degradation chain.
  *
- * Tenta cada task EM ORDEM e devolve o primeiro `Ok`. Se um falha, passa para
- * o próximo (short-circuit no primeiro sucesso — os seguintes nem rodam). Se
- * todos falharem, devolve o último `Err`.
+ * Tries each task IN ORDER and returns the first `Ok`. If one fails, it moves to
+ * the next (short-circuits on the first success — the rest don't even run). If
+ * all fail, it returns the last `Err`.
  *
- *   const previsao = await fallback([
- *     task(() => openSky.getForecast(cidade)),  // provider primário
- *     task(() => meteoNow.getForecast(cidade)), // secundário
- *     task(() => localCache.get(cidade)),       // último recurso
+ *   const forecast = await fallback([
+ *     task(() => openSky.getForecast(city)),  // primary provider
+ *     task(() => meteoNow.getForecast(city)), // secondary
+ *     task(() => localCache.get(city)),       // last resort
  *   ]).unwrap()
  *
- * Todas as alternativas compartilham o mesmo tipo de valor e de erro (são, por
- * definição, intercambiáveis). Se as fontes têm erros heterogêneos, normalize
- * antes com `.mapErr(...)` em cada uma.
+ * All alternatives share the same value and error type (interchangeable by
+ * definition). If the sources have heterogeneous errors, normalize each first
+ * with `.mapErr(...)`.
  */
 
 import { type Result, err } from '../core/result.js'
@@ -21,12 +21,12 @@ import { type TaskLike, TaskBuilder, AbortError, asTask, safeRun } from '../core
 
 export function fallback<T, E = Error>(tasks: readonly TaskLike<T, E>[]): TaskBuilder<T, E> {
   if (tasks.length === 0) {
-    throw new TypeError('fallback() requer ao menos um task')
+    throw new TypeError('fallback() requires at least one task')
   }
   const fns = tasks.map((t) => asTask(t))
 
   return new TaskBuilder<T, E>(async (signal) => {
-    // Garantido reatribuído no laço (fns tem length >= 1).
+    // Guaranteed to be reassigned in the loop (fns has length >= 1).
     let last: Result<T, E> = err<E, T>(new AbortError() as E)
     for (const fn of fns) {
       if (signal?.aborted) return err<E, T>(new AbortError() as E)

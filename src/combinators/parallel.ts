@@ -1,32 +1,32 @@
 /**
- * parallel — fan-out: dispara N tasks ao mesmo tempo e coleta os resultados.
+ * parallel — fan-out: fires N tasks at once and collects the results.
  *
- * Diferente de `Promise.all`, NÃO faz short-circuit: cada task tem seu próprio
- * Result preservado, em ordem, numa TUPLA TIPADA. Uma falha não derruba as
- * outras — a orquestração em si nunca falha (E = never), então o que você
- * inspeciona é cada `Result` individual.
+ * Unlike `Promise.all`, it does NOT short-circuit: each task keeps its own
+ * Result, in order, in a TYPED TUPLE. One failure doesn't take the others down
+ * — the orchestration itself never fails (E = never), so what you inspect is
+ * each individual `Result`.
  *
- *   const [previsao, aqi] = await parallel([
- *     task(() => openSky.getForecast(cidade)), // Task<Forecast>
- *     task(() => airIndex.getAQI(cidade)),     // Task<AQI>
+ *   const [forecast, aqi] = await parallel([
+ *     task(() => openSky.getForecast(city)), // Task<Forecast>
+ *     task(() => airIndex.getAQI(city)),     // Task<AQI>
  *   ]).unwrap()
- *   // previsao: Result<Forecast, Error>
+ *   // forecast: Result<Forecast, Error>
  *   // aqi:      Result<AQI, Error>
  *
- * `concurrency` limita quantas executam simultaneamente (preservando a ordem
- * dos resultados). Sem ele, todas saem de uma vez.
+ * `concurrency` caps how many run at the same time (preserving result order).
+ * Without it, they all start at once.
  */
 
 import { type Result, ok } from '../core/result.js'
 import { type TaskLike, TaskBuilder, asTask, safeRun } from '../core/task.js'
 
-/** Mapeia uma tupla de TaskLike para a tupla de Results correspondente. */
+/** Maps a tuple of TaskLike into the corresponding tuple of Results. */
 type ResultsOf<TS extends readonly TaskLike<unknown, unknown>[]> = {
   [K in keyof TS]: TS[K] extends TaskLike<infer T, infer E> ? Result<T, E> : never
 }
 
 export interface ParallelOptions {
-  /** Máximo de tasks executando ao mesmo tempo. Padrão: todas. */
+  /** Maximum number of tasks running at the same time. Default: all. */
   concurrency?: number
 }
 

@@ -1,74 +1,74 @@
-# Convenção de Commits — Gering
+# Commit Convention — Gering
 
-Seguimos [Conventional Commits](https://www.conventionalcommits.org/). Cada commit tem um cabeçalho estruturado, opcionalmente corpo e rodapé.
+We follow [Conventional Commits](https://www.conventionalcommits.org/). Each commit has a structured header, an optional body, and an optional footer.
 
-## Formato
+## Format
 
 ```
-<tipo>(<escopo>): <descrição no imperativo, minúscula, sem ponto final>
+<type>(<scope>): <imperative description, lowercase, no trailing period>
 
-[corpo opcional: o porquê da mudança, não o quê]
+[optional body: the why of the change, not the what]
 
-[rodapé opcional: BREAKING CHANGE, refs]
+[optional footer: BREAKING CHANGE, refs]
 ```
 
-Regras do cabeçalho:
-- **Imperativo**: "adiciona", não "adicionado"/"adicionando".
-- **≤ 72 caracteres**, sem ponto final.
-- Escopo é opcional, mas recomendado quando a mudança é localizada.
+Header rules:
+- **Imperative**: "add", not "added"/"adding".
+- **≤ 72 characters**, no trailing period.
+- Scope is optional, but recommended when the change is localized.
 
-## Tipos
+## Types
 
-| Tipo | Quando usar |
+| Type | When to use |
 | --- | --- |
-| `feat` | Nova funcionalidade pública (novo combinador, middleware, método). |
-| `fix` | Correção de bug. |
-| `refactor` | Mudança interna sem alterar comportamento observável. |
-| `perf` | Melhoria de performance. |
-| `docs` | README, JSDoc, exemplos, este arquivo. |
-| `test` | Adiciona/ajusta testes. |
-| `build` | tsconfig, scripts de build, empacotamento, `package.json`. |
-| `chore` | Tarefas auxiliares (deps, configs) que não entram em nenhum acima. |
+| `feat` | New public functionality (new combinator, middleware, method). |
+| `fix` | Bug fix. |
+| `refactor` | Internal change without altering observable behavior. |
+| `perf` | Performance improvement. |
+| `docs` | README, JSDoc, examples, this file. |
+| `test` | Adds/adjusts tests. |
+| `build` | tsconfig, build scripts, packaging, `package.json`. |
+| `chore` | Auxiliary tasks (deps, configs) that don't fit any of the above. |
 
-## Escopos
+## Scopes
 
-Os escopos espelham a estrutura do `src/`:
+Scopes mirror the `src/` structure:
 
 - **core**: `result`, `task`, `context`
 - **combinators**: `parallel`, `pipe`, `fallback`, `race`
 - **middleware**: `retry`, `timeout`, `cache`, `circuit-breaker`
-- **outros**: `index` (superfície pública), `examples`, `deps`
+- **others**: `index` (public surface), `examples`, `deps`
 
-Use o escopo mais específico que descreve a mudança (ex.: `fix(retry)` em vez de `fix(middleware)`).
+Use the most specific scope that describes the change (e.g., `fix(retry)` instead of `fix(middleware)`).
 
-## Exemplos
+## Examples
 
 ```
-feat(parallel): adiciona opção concurrency para limitar fan-out
-feat(middleware): adiciona withCircuitBreaker com half-open
-fix(retry): converte abort durante a espera em Err em vez de lançar
-refactor(core): extrai AbortError e safeRun para context.ts
-test(circuit-breaker): cobre transição half-open → closed
-docs(readme): adiciona exemplo end-to-end Weather Dashboard
-build: empacota como ESM com exports e .d.ts
+feat(parallel): add concurrency option to cap fan-out
+feat(middleware): add withCircuitBreaker with half-open
+fix(retry): convert abort during the wait into Err instead of throwing
+refactor(core): extract AbortError and safeRun into context.ts
+test(circuit-breaker): cover the half-open → closed transition
+docs(readme): add Weather Dashboard end-to-end example
+build: package as ESM with exports and .d.ts
 ```
 
 ### Breaking change
 
-Marque com `!` após o escopo **e** um rodapé `BREAKING CHANGE:`:
+Mark it with `!` after the scope **and** a `BREAKING CHANGE:` footer:
 
 ```
-feat(task)!: torna run() exigir AbortSignal explícito
+feat(task)!: make run() require an explicit AbortSignal
 
-BREAKING CHANGE: TaskBuilder.run() não aceita mais ser chamado sem signal.
+BREAKING CHANGE: TaskBuilder.run() can no longer be called without a signal.
 ```
 
-## Plugar o template (opcional)
+## Wire up the template (optional)
 
-Há um template pronto em `.gitmessage`. Para o git pré-preencher a mensagem:
+There's a ready-made template at `.gitmessage`. To have git pre-fill the message:
 
 ```bash
 git config commit.template .gitmessage
 ```
 
-Daí `git commit` (sem `-m`) abre o editor já com o guia.
+Then `git commit` (without `-m`) opens the editor already with the guide.

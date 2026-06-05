@@ -4,79 +4,79 @@ import { task } from '../../src/core/task.js'
 import { CircuitOpenError } from '../../src/middleware/circuit-breaker.js'
 
 describe('withCircuitBreaker (.circuitBreaker)', () => {
-  it('abre após threshold falhas e passa a falhar rápido', async () => {
+  it('opens after threshold failures and starts failing fast', async () => {
     let calls = 0
     const flaky = task<string>(async () => {
       calls++
-      throw new Error('fora')
+      throw new Error('down')
     }).circuitBreaker({ threshold: 2, halfOpenAfter: 10_000 })
 
-    await flaky.run() // falha 1
-    await flaky.run() // falha 2 -> abre
-    const r = await flaky.run() // aberto: fail-fast
+    await flaky.run() // failure 1
+    await flaky.run() // failure 2 -> opens
+    const r = await flaky.run() // open: fail-fast
 
-    assert.equal(calls, 2, 'aberto não deve chamar o serviço')
+    assert.equal(calls, 2, 'open should not call the service')
     assert.ok(r.unwrapErr() instanceof CircuitOpenError)
   })
 
-  it('dispara onOpen quando abre', async () => {
-    let abriu = false
+  it('fires onOpen when it opens', async () => {
+    let opened = false
     const flaky = task<string>(async () => {
-      throw new Error('fora')
-    }).circuitBreaker({ threshold: 1, halfOpenAfter: 10_000, onOpen: () => (abriu = true) })
+      throw new Error('down')
+    }).circuitBreaker({ threshold: 1, halfOpenAfter: 10_000, onOpen: () => (opened = true) })
 
     await flaky.run()
-    assert.equal(abriu, true)
+    assert.equal(opened, true)
   })
 
-  it('sucesso reseta o contador de falhas (não abre)', async () => {
+  it('success resets the failure counter (does not open)', async () => {
     let calls = 0
     const svc = task<number>(async () => {
       calls++
-      if (calls === 2) return 1 // sucesso no meio
-      throw new Error('fora')
+      if (calls === 2) return 1 // success in the middle
+      throw new Error('down')
     }).circuitBreaker({ threshold: 2, halfOpenAfter: 10_000 })
 
-    await svc.run() // falha (1)
-    await svc.run() // sucesso -> reseta
-    await svc.run() // falha (1 de novo, não abre)
-    const r = await svc.run() // ainda chama (não fail-fast)
+    await svc.run() // failure (1)
+    await svc.run() // success -> reset
+    await svc.run() // failure (1 again, does not open)
+    const r = await svc.run() // still calls (not fail-fast)
     assert.equal(calls, 4)
-    assert.equal(r.unwrapErr().message, 'fora')
+    assert.equal(r.unwrapErr().message, 'down')
   })
 
-  it('half-open após cooldown: fecha se a tentativa vingar', async () => {
-    let modoFalha = true
+  it('half-open after cooldown: closes if the attempt succeeds', async () => {
+    let failMode = true
     let calls = 0
     const svc = task<string>(async () => {
       calls++
-      if (modoFalha) throw new Error('fora')
-      return 'recuperado'
+      if (failMode) throw new Error('down')
+      return 'recovered'
     }).circuitBreaker({ threshold: 1, halfOpenAfter: 20 })
 
-    await svc.run() // falha -> abre
-    const fechado = await svc.run() // aberto -> fail-fast
-    assert.ok(fechado.unwrapErr() instanceof CircuitOpenError)
+    await svc.run() // failure -> opens
+    const closed = await svc.run() // open -> fail-fast
+    assert.ok(closed.unwrapErr() instanceof CircuitOpenError)
 
-    await new Promise((r) => setTimeout(r, 30)) // espera cooldown
-    modoFalha = false
-    const r = await svc.run() // half-open -> tenta -> sucesso -> fecha
-    assert.equal(r.unwrap(), 'recuperado')
+    await new Promise((r) => setTimeout(r, 30)) // wait for cooldown
+    failMode = false
+    const r = await svc.run() // half-open -> tries -> success -> closes
+    assert.equal(r.unwrap(), 'recovered')
   })
 
-  it('half-open: se a tentativa falha, reabre', async () => {
+  it('half-open: if the attempt fails, it reopens', async () => {
     let calls = 0
     const svc = task<string>(async () => {
       calls++
-      throw new Error('fora')
+      throw new Error('down')
     }).circuitBreaker({ threshold: 1, halfOpenAfter: 20 })
 
-    await svc.run() // falha -> abre
+    await svc.run() // failure -> opens
     await new Promise((r) => setTimeout(r, 30))
-    const callsAntes = calls
-    await svc.run() // half-open -> tenta (chama) -> falha -> reabre
-    assert.equal(calls, callsAntes + 1)
-    const r = await svc.run() // aberto de novo -> fail-fast
+    const callsBefore = calls
+    await svc.run() // half-open -> tries (calls) -> fails -> reopens
+    assert.equal(calls, callsBefore + 1)
+    const r = await svc.run() // open again -> fail-fast
     assert.ok(r.unwrapErr() instanceof CircuitOpenError)
   })
 })

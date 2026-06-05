@@ -1,9 +1,9 @@
 /**
- * withRetry — repete o Task enquanto ele retornar `Err`.
+ * withRetry — retries the Task while it returns `Err`.
  *
- * `attempts` inclui a primeira tentativa. Entre tentativas espera `delay` ms
- * (backoff 'fixed') ou `delay * factor^n` ('exponential'). Aborta na hora se o
- * signal for cancelado.
+ * `attempts` includes the first try. Between attempts it waits `delay` ms
+ * ('fixed' backoff) or `delay * factor^n` ('exponential'). Aborts immediately if
+ * the signal is canceled.
  */
 
 import { type Result, err } from '../core/result.js'
@@ -11,13 +11,13 @@ import type { Task } from '../core/task.js'
 import { AbortError, wait } from '../core/context.js'
 
 export interface RetryPolicy {
-  /** Número total de tentativas (inclui a primeira). */
+  /** Total number of attempts (includes the first). */
   attempts: number
-  /** Estratégia de espera entre tentativas. Padrão: 'fixed'. */
+  /** Wait strategy between attempts. Default: 'fixed'. */
   backoff?: 'fixed' | 'exponential'
-  /** Atraso base em ms. Padrão: 100. */
+  /** Base delay in ms. Default: 100. */
   delay?: number
-  /** Fator multiplicativo para backoff exponencial. Padrão: 2. */
+  /** Multiplicative factor for exponential backoff. Default: 2. */
   factor?: number
 }
 
@@ -37,7 +37,7 @@ export function withRetry<T, E>(policy: RetryPolicy | number): (task: Task<T, E>
         try {
           await wait(ms, signal)
         } catch {
-          // signal abortado durante a espera: encerra como Err sem lançar.
+          // signal aborted during the wait: finish as Err without throwing.
           return err<E, T>(new AbortError() as E)
         }
       }

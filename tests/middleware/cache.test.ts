@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { task } from '../../src/core/task.js'
 
 describe('withCache (.cache)', () => {
-  it('memoiza o Ok dentro do TTL', async () => {
+  it('memoizes the Ok within the TTL', async () => {
     let calls = 0
     const cached = task(async () => {
       calls++
@@ -15,11 +15,11 @@ describe('withCache (.cache)', () => {
     assert.equal(calls, 1)
   })
 
-  it('não cacheia Err — sempre reexecuta', async () => {
+  it('does not cache Err — always re-runs', async () => {
     let calls = 0
     const cached = task<number>(async () => {
       calls++
-      throw new Error('falha')
+      throw new Error('failure')
     }).cache({ ttl: 1000, key: 'y' })
 
     await cached.run()
@@ -27,7 +27,7 @@ describe('withCache (.cache)', () => {
     assert.equal(calls, 2)
   })
 
-  it('reexecuta após o TTL expirar', async () => {
+  it('re-runs after the TTL expires', async () => {
     let calls = 0
     const cached = task(async () => {
       calls++
@@ -40,7 +40,7 @@ describe('withCache (.cache)', () => {
     assert.equal(calls, 2)
   })
 
-  it('instâncias de .cache() diferentes têm stores isolados', async () => {
+  it('different .cache() instances have isolated stores', async () => {
     let a = 0
     let b = 0
     const ca = task(async () => ++a).cache({ ttl: 1000 })

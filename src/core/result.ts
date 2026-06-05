@@ -1,8 +1,8 @@
 /**
- * Result<T, E> — modelo de erro explícito e type-safe do Gering.
+ * Result<T, E> — Gering's explicit, type-safe error model.
  *
- * Sem dependência externa. A discriminação é feita pelo campo `ok`,
- * e a manipulação acontece por métodos no próprio objeto (`.map`, `.unwrap`...).
+ * No external dependency. Discrimination is done via the `ok` field, and
+ * manipulation happens through methods on the object itself (`.map`, `.unwrap`...).
  */
 
 export type Result<T, E = Error> = Ok<T, E> | Err<T, E>
@@ -18,42 +18,42 @@ export class Ok<T, E = Error> {
     return false
   }
 
-  /** Transforma o valor de sucesso. No-op em Err. */
+  /** Transforms the success value. No-op on Err. */
   map<U>(fn: (value: T) => U): Result<U, E> {
     return new Ok<U, E>(fn(this.value))
   }
 
-  /** Transforma o erro. No-op em Ok. */
+  /** Transforms the error. No-op on Ok. */
   mapErr<F>(_fn: (error: E) => F): Result<T, F> {
     return new Ok<T, F>(this.value)
   }
 
-  /** Encadeia outro Result a partir do valor (flatMap). */
+  /** Chains another Result from the value (flatMap). */
   andThen<U>(fn: (value: T) => Result<U, E>): Result<U, E> {
     return fn(this.value)
   }
 
-  /** Recupera de um erro produzindo outro Result. No-op em Ok. */
+  /** Recovers from an error by producing another Result. No-op on Ok. */
   orElse<F>(_fn: (error: E) => Result<T, F>): Result<T, F> {
     return new Ok<T, F>(this.value)
   }
 
-  /** Extrai o valor; lança se for Err. */
+  /** Extracts the value; throws if it is Err. */
   unwrap(): T {
     return this.value
   }
 
-  /** Extrai o valor ou retorna o fallback. */
+  /** Extracts the value or returns the fallback. */
   unwrapOr(_fallback: T): T {
     return this.value
   }
 
-  /** Extrai o erro; lança se for Ok. */
+  /** Extracts the error; throws if it is Ok. */
   unwrapErr(): never {
-    throw new TypeError(`unwrapErr() chamado em um Ok: ${String(this.value)}`)
+    throw new TypeError(`unwrapErr() called on an Ok: ${String(this.value)}`)
   }
 
-  /** Pattern matching exaustivo sobre os dois lados. */
+  /** Exhaustive pattern matching over both sides. */
   match<R>(arms: { ok: (value: T) => R; err: (error: E) => R }): R {
     return arms.ok(this.value)
   }
@@ -88,7 +88,7 @@ export class Err<T, E = Error> {
 
   unwrap(): never {
     if (this.error instanceof Error) throw this.error
-    throw new Error(`unwrap() chamado em um Err: ${String(this.error)}`)
+    throw new Error(`unwrap() called on an Err: ${String(this.error)}`)
   }
 
   unwrapOr(fallback: T): T {
@@ -104,15 +104,15 @@ export class Err<T, E = Error> {
   }
 }
 
-/** Constrói um Ok. */
+/** Builds an Ok. */
 export const ok = <T, E = Error>(value: T): Result<T, E> => new Ok<T, E>(value)
 
-/** Constrói um Err. */
+/** Builds an Err. */
 export const err = <E, T = never>(error: E): Result<T, E> => new Err<T, E>(error)
 
 /**
- * Converte uma Promise que pode lançar em um Result.
- * `onError` mapeia a causa desconhecida para o tipo de erro do domínio.
+ * Converts a Promise that may throw into a Result.
+ * `onError` maps the unknown cause into the domain's error type.
  */
 export async function fromPromise<T, E = Error>(
   promise: Promise<T>,

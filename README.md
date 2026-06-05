@@ -1,65 +1,67 @@
+**English** · [Português](README.pt-BR.md)
+
 # Gering
 
-Composição de chamadas a APIs externas para TypeScript/Node.js — **fan-out, cache, fallback, retry, timeout e circuit breaker** com uma API fluente e segura.
+External API call composition for TypeScript/Node.js — **fan-out, cache, fallback, retry, timeout, and circuit breaker** behind a fluent, type-safe API.
 
-Gering resolve, de forma consistente, o que todo projeto reescreve do zero: orquestrar várias chamadas a serviços externos com resiliência e tipos honestos.
+Gering solves, consistently, what every project rewrites from scratch: orchestrating multiple calls to external services with resilience and honest types.
 
 ```ts
 import { task, parallel } from 'gering-flow'
 
-const [previsao, qualidadeAr] = await parallel([
-  task(() => openSky.getForecast(cidade)),
-  task(() => airIndex.getAQI(cidade)),
+const [forecast, airQuality] = await parallel([
+  task(() => openSky.getForecast(city)),
+  task(() => airIndex.getAQI(city)),
 ]).unwrap()
 ```
 
-## Instalação
+## Installation
 
 ```bash
 npm install gering-flow
 ```
 
-Publicado como ESM, com tipos incluídos. Requer Node ≥ 20.
+Published as ESM, types included. Requires Node ≥ 20.
 
-## Princípios de design
+## Design principles
 
-- **Agnóstico a transporte.** Tudo que importa é `() => Promise<T>`. Você traz o `fetch`/`axios`/SDK que quiser. **Zero dependências.**
-- **Erros explícitos.** Nada de `throw` silencioso: toda execução devolve um [`Result<T, E>`](#result) que o consumidor é obrigado a tratar.
-- **Cancelável por padrão.** `AbortSignal` é propagado por todo o pipeline desde o v1.
-- **Estado isolado.** Cada `task(fn)` é uma instância independente — sem estado global escondido, o que torna tudo trivial de testar.
-- **API fluente.** `task(fn).timeout(2000).retry(3).run()`.
+- **Transport-agnostic.** All that matters is `() => Promise<T>`. Bring whatever `fetch`/`axios`/SDK you like. **Zero dependencies.**
+- **Explicit errors.** No silent `throw`: every execution returns a [`Result<T, E>`](#resultt-e) the consumer is forced to handle.
+- **Cancelable by default.** `AbortSignal` is propagated through the whole pipeline from v1.
+- **Isolated state.** Each `task(fn)` is an independent instance — no hidden global state, which makes everything trivial to test.
+- **Fluent API.** `task(fn).timeout(2000).retry(3).run()`.
 
-## Conceito central: `Task`
+## Core concept: `Task`
 
-A abstração que sustenta tudo:
+The abstraction everything is built on:
 
 ```ts
 type Task<T, E = Error> = (signal?: AbortSignal) => Promise<Result<T, E>>
 ```
 
-Uma função que, dado um `AbortSignal` opcional, devolve um `Result`. `task(fn)` adapta qualquer função que pode lançar para essa forma, capturando exceções como `Err`.
+A function that, given an optional `AbortSignal`, returns a `Result`. `task(fn)` adapts any function that may throw into this shape, capturing exceptions as `Err`.
 
 ## `Result<T, E>`
 
-Modelo de erro type-safe, sem dependência externa. A discriminação é pelo campo `ok`, e a manipulação é feita por métodos no próprio objeto.
+A type-safe error model with no external dependency. Discrimination is via the `ok` field, and manipulation is done through methods on the object itself.
 
 ```ts
 type Result<T, E = Error> = Ok<T, E> | Err<T, E>
 ```
 
-| Método | Descrição |
+| Method | Description |
 | --- | --- |
-| `.isOk()` / `.isErr()` | Type guards que estreitam para `Ok` / `Err`. |
-| `.map(fn)` | Transforma o valor de sucesso. No-op em `Err`. |
-| `.mapErr(fn)` | Transforma o erro. No-op em `Ok`. |
-| `.andThen(fn)` | Encadeia outro `Result` a partir do valor (flatMap). |
-| `.orElse(fn)` | Recupera de um erro produzindo outro `Result`. |
-| `.unwrap()` | Extrai o valor; **lança** se for `Err`. |
-| `.unwrapOr(fallback)` | Extrai o valor ou retorna o fallback. |
-| `.unwrapErr()` | Extrai o erro; lança se for `Ok`. |
-| `.match({ ok, err })` | Pattern matching exaustivo. |
+| `.isOk()` / `.isErr()` | Type guards that narrow to `Ok` / `Err`. |
+| `.map(fn)` | Transforms the success value. No-op on `Err`. |
+| `.mapErr(fn)` | Transforms the error. No-op on `Ok`. |
+| `.andThen(fn)` | Chains another `Result` from the value (flatMap). |
+| `.orElse(fn)` | Recovers from an error by producing another `Result`. |
+| `.unwrap()` | Extracts the value; **throws** if it is `Err`. |
+| `.unwrapOr(fallback)` | Extracts the value or returns the fallback. |
+| `.unwrapErr()` | Extracts the error; throws if it is `Ok`. |
+| `.match({ ok, err })` | Exhaustive pattern matching. |
 
-Construtores e helpers: `ok(value)`, `err(error)`, `fromPromise(promise, onError?)`.
+Constructors and helpers: `ok(value)`, `err(error)`, `fromPromise(promise, onError?)`.
 
 ```ts
 const r = ok(2).map((n) => n + 1)          // Ok(3)
@@ -69,9 +71,9 @@ const e = err<string>('boom')
 e.unwrapOr(99)                             // 99
 ```
 
-## Builder fluente
+## Fluent builder
 
-`task(fn)` devolve um `TaskBuilder` imutável — cada método retorna um novo builder.
+`task(fn)` returns an immutable `TaskBuilder` — every method returns a new builder.
 
 ```ts
 const result = await task(() => fetch(url).then((r) => r.json()))
@@ -81,31 +83,31 @@ const result = await task(() => fetch(url).then((r) => r.json()))
   .run() // → Promise<Result<T, E>>
 ```
 
-| Método | Descrição |
+| Method | Description |
 | --- | --- |
-| `.map(fn)` / `.mapErr(fn)` | Transforma valor / erro do resultado. |
-| `.andThen(fn)` | Encadeia outro `Task` a partir do valor. |
-| `.recover(fn)` | Recupera de um erro encadeando outro `Task`. |
-| `.timeout(ms)` | Cancela via `AbortSignal` se não resolver a tempo. |
-| `.retry(policy)` | Repete enquanto retornar `Err`. Aceita `number` ou `RetryPolicy`. |
-| `.cache(options)` | Memoiza o resultado de sucesso por uma janela de TTL. |
-| `.circuitBreaker(options?)` | Protege um serviço instável (fail-fast). |
-| `.use(wrap)` | Ponto de extensão para middleware customizado. |
-| `.run(signal?)` | Executa e devolve o `Result`. |
-| `.unwrap(signal?)` | Executa e extrai o valor (lança em `Err`). |
+| `.map(fn)` / `.mapErr(fn)` | Transforms the result's value / error. |
+| `.andThen(fn)` | Chains another `Task` from the value. |
+| `.recover(fn)` | Recovers from an error by chaining another `Task`. |
+| `.timeout(ms)` | Cancels via `AbortSignal` if it doesn't resolve in time. |
+| `.retry(policy)` | Retries while it returns `Err`. Accepts `number` or `RetryPolicy`. |
+| `.cache(options)` | Memoizes the success result for a TTL window. |
+| `.circuitBreaker(options?)` | Protects an unstable service (fail-fast). |
+| `.use(wrap)` | Extension point for custom middleware. |
+| `.run(signal?)` | Runs and returns the `Result`. |
+| `.unwrap(signal?)` | Runs and extracts the value (throws on `Err`). |
 
 `RetryPolicy`: `{ attempts, backoff?: 'fixed' | 'exponential', delay?, factor? }`.
 
-## Combinadores
+## Combinators
 
-### `parallel` — fan-out com tupla tipada
+### `parallel` — fan-out with a typed tuple
 
-Dispara N tasks ao mesmo tempo e coleta os resultados **em ordem, numa tupla tipada**. Diferente de `Promise.all`, **não faz short-circuit**: uma falha não derruba as vizinhas — você inspeciona cada `Result` individualmente.
+Fires N tasks at once and collects the results **in order, in a typed tuple**. Unlike `Promise.all`, it **does not short-circuit**: one failure doesn't take the others down — you inspect each `Result` individually.
 
 ```ts
 const [a, b, c] = await parallel([
   task(async () => 1),        // Task<number>
-  task(async () => 'dois'),   // Task<string>
+  task(async () => 'two'),    // Task<string>
   task(async () => fetchX()), // Task<X>
 ]).unwrap()
 
@@ -114,150 +116,149 @@ const [a, b, c] = await parallel([
 // c: Result<X, Error>
 ```
 
-Use `concurrency` para limitar quantas executam ao mesmo tempo (a ordem dos resultados é preservada):
+Use `concurrency` to cap how many run at once (result order is preserved):
 
 ```ts
 await parallel(tasks, { concurrency: 3 }).unwrap()
 ```
 
-A orquestração em si nunca falha (`E = never`); as falhas vivem dentro de cada `Result` da tupla.
+The orchestration itself never fails (`E = never`); failures live inside each `Result` of the tuple.
 
-### `pipe` — sequência com passagem de valor
+### `pipe` — sequence with value passing
 
-Composição sequencial onde o `output` de um passo vira o `input` do próximo, com os tipos encadeados (`V0 → V1 → V2`). O primeiro elemento é um `Task`; cada passo seguinte é uma **função** que recebe o valor anterior e devolve o próximo `Task`.
+Sequential composition where one step's `output` becomes the next step's `input`, with chained types (`V0 → V1 → V2`). The first element is a `Task`; each following step is a **function** that receives the previous value and returns the next `Task`.
 
 ```ts
-const nome = await pipe(
+const name = await pipe(
   task(() => api.getUserId()),                 // Task<string>
   (id) => task(() => api.getUser(id)),         // (string) => Task<User>
   (user) => task(() => api.getName(user.id)),  // (User) => Task<string>
 ).unwrap()
 ```
 
-**Short-circuit no primeiro `Err`**: se um passo falha, os seguintes não executam e o pipe devolve esse `Err`. Os tipos são verificados passo a passo via overloads (até 5 passos; acima disso, encadeie dois `pipe`).
+**Short-circuits on the first `Err`**: if a step fails, the following ones don't run and the pipe returns that `Err`. Types are checked step by step via overloads (up to 5 steps; beyond that, chain two `pipe`s).
 
-### `fallback` — cadeia de degradação
+### `fallback` — degradation chain
 
-Tenta cada task **em ordem** e devolve o primeiro `Ok`. Se um falha, passa para o próximo (short-circuit no primeiro sucesso — os seguintes nem executam). Se todos falharem, devolve o **último `Err`**.
+Tries each task **in order** and returns the first `Ok`. If one fails, it moves to the next (short-circuits on the first success — the rest don't even run). If all fail, it returns the **last `Err`**.
 
 ```ts
-const previsao = await fallback([
-  task(() => openSky.getForecast(cidade)),  // provider primário
-  task(() => meteoNow.getForecast(cidade)), // secundário
-  task(() => localCache.get(cidade)),       // último recurso
+const forecast = await fallback([
+  task(() => openSky.getForecast(city)),  // primary provider
+  task(() => meteoNow.getForecast(city)), // secondary
+  task(() => localCache.get(city)),       // last resort
 ]).unwrap()
 ```
 
-Todas as alternativas compartilham o mesmo `T` e `E` (são intercambiáveis por definição). Se as fontes têm erros heterogêneos, normalize antes com `.mapErr(...)` em cada uma.
+All alternatives share the same `T` and `E` (interchangeable by definition). If the sources have heterogeneous errors, normalize each first with `.mapErr(...)`.
 
-### `race` — o primeiro a resolver vence
+### `race` — first to settle wins
 
-Dispara todos ao mesmo tempo e devolve o **primeiro a terminar** — vencedor por velocidade, não por sucesso (pode ser `Ok` ou `Err`). Os perdedores são cancelados via `AbortSignal`.
+Fires all at once and returns the **first to finish** — winner by speed, not by success (it can be `Ok` or `Err`). The losers are canceled via `AbortSignal`.
 
 ```ts
-const cotacao = await race([
-  task((s) => fetch(provedorA, { signal: s }).then((r) => r.json())),
-  task((s) => fetch(provedorB, { signal: s }).then((r) => r.json())),
+const quote = await race([
+  task((s) => fetch(providerA, { signal: s }).then((r) => r.json())),
+  task((s) => fetch(providerB, { signal: s }).then((r) => r.json())),
 ]).unwrap()
 ```
 
-Útil para fontes redundantes onde você quer a resposta mais rápida. Lança em array vazio.
+Useful for redundant sources where you want the fastest response. Throws on an empty array.
 
-## Exemplo end-to-end
+## End-to-end example
 
-[`examples/weather-dashboard.ts`](examples/weather-dashboard.ts) é um exemplo rodável (cenário fictício "Weather Dashboard") que combina os padrões num fluxo de agregação de previsão do tempo:
+[`examples/weather-dashboard.ts`](examples/weather-dashboard.ts) is a runnable example (fictional "Weather Dashboard" scenario) that combines the patterns into a weather-aggregation flow:
 
 ```bash
 npm run example
 ```
 
-Ele demonstra três situações, cada uma com um provedor caindo de um jeito diferente:
+It demonstrates three situations, each with a provider failing in a different way:
 
 ```ts
-// Previsão resiliente: primário (retry + timeout + cache) → secundário → cache local
-function previsaoResiliente(cidade: string) {
+// Resilient forecast: primary (retry + timeout + cache) → secondary → local cache
+function resilientForecast(city: string) {
   return fallback<Forecast>([
-    task((s) => openSkyGet(cidade, s))
+    task((s) => openSkyGet(city, s))
       .retry({ attempts: 3, backoff: 'exponential', delay: 10 })
       .timeout(500)
-      .cache({ ttl: 60_000, key: `weather:${cidade}` }),
-    task((s) => meteoNowGet(cidade, s)).timeout(80),
-    task(() => cacheGet(cidade)),
+      .cache({ ttl: 60_000, key: `weather:${city}` }),
+    task((s) => meteoNowGet(city, s)).timeout(80),
+    task(() => cacheGet(city)),
   ])
 }
 
-// Várias cidades em paralelo
-const previsoes = await parallel(cidades.map((c) => previsaoResiliente(c))).unwrap()
+// Several cities in parallel
+const forecasts = await parallel(cities.map((c) => resilientForecast(c))).unwrap()
 
-// Pipeline geocode → previsão → alerta (short-circuit no primeiro erro)
-const alertado = await pipe(
-  previsaoResiliente(cidade),
-  (f) => task(() => detectarAlerta(f)),
-  (alerta) => task((s) => enviarPush(alerta, s)).retry(3),
+// Pipeline forecast → detect alert → push (short-circuits on the first error)
+const alerted = await pipe(
+  resilientForecast(city),
+  (f) => task(() => detectAlert(f)),
+  (alert) => task((s) => sendPush(alert, s)).retry(3),
 ).run()
 ```
 
-Saída esperada — cada linha mostra um padrão de resiliência salvando o dia (retry, fallback ao secundário, fallback ao cache):
+Expected output — each line shows a resilience pattern saving the day (retry, fallback to secondary, fallback to cache):
 
 ```
-━━━ 1. Previsão resiliente por cidade ━━━
-  ✔ Lisboa:  24°C via OpenSky         (retry: OpenSky falhou 2x, acertou na 3ª)
-  ✔ Tokyo:   22°C via MeteoNow        (fallback: OpenSky fora → secundário)
-  ✔ Nairobi: 29°C via cache (stale)   (fallback: ambos fora → cache local)
+━━━ 1. Resilient forecast per city ━━━
+  ✔ Lisbon: 24°C via OpenSky          (retry: OpenSky failed 2x, succeeded on the 3rd)
+  ✔ Tokyo: 22°C via MeteoNow          (fallback: OpenSky down → secondary)
+  ✔ Nairobi: 29°C via cache (stale)   (fallback: both down → local cache)
 ```
 
 ## Middleware
 
-Cada middleware é uma função `(task: Task) => Task` — composável via `.use(...)` ou pelos atalhos fluentes no builder. O estado (cache, contadores do breaker) vive no escopo do middleware: **isolado por instância**, sem nada global.
+Each middleware is a `(task: Task) => Task` function — composable via `.use(...)` or through the fluent shortcuts on the builder. State (cache, breaker counters) lives in the middleware's scope: **isolated per instance**, nothing global.
 
-| Middleware | Atalho no builder | O que faz |
+| Middleware | Builder shortcut | What it does |
 | --- | --- | --- |
-| `withTimeout(ms)` | `.timeout(ms)` | Cancela via signal se estourar o tempo. |
-| `withRetry(policy)` | `.retry(policy)` | Repete enquanto retornar `Err`. |
-| `withCache(opts)` | `.cache(opts)` | Memoiza o `Ok` por uma janela de TTL (só sucesso). |
-| `withCircuitBreaker(opts)` | `.circuitBreaker(opts)` | Fail-fast após N falhas consecutivas. |
+| `withTimeout(ms)` | `.timeout(ms)` | Cancels via signal if it runs out of time. |
+| `withRetry(policy)` | `.retry(policy)` | Retries while it returns `Err`. |
+| `withCache(opts)` | `.cache(opts)` | Memoizes the `Ok` for a TTL window (success only). |
+| `withCircuitBreaker(opts)` | `.circuitBreaker(opts)` | Fail-fast after N consecutive failures. |
 
 ```ts
-// Atalhos fluentes:
+// Fluent shortcuts:
 task(fn).timeout(2000).retry(3).cache({ ttl: 5000 }).circuitBreaker({ threshold: 5 })
 
-// Ou composição explícita via .use, equivalente:
+// Or explicit composition via .use, equivalent:
 task(fn).use(withTimeout(2000)).use(withRetry(3))
 ```
 
-**Circuit breaker** — máquina de estados `closed → open → half-open`. Abre após `threshold` falhas consecutivas (padrão 5), rejeitando na hora com `CircuitOpenError` por `halfOpenAfter` ms (padrão 10s); depois deixa uma tentativa passar (half-open) e fecha se ela vingar.
+**Circuit breaker** — a `closed → open → half-open` state machine. Opens after `threshold` consecutive failures (default 5), failing fast with `CircuitOpenError` for `halfOpenAfter` ms (default 10s); then it lets one attempt through (half-open) and closes if it succeeds.
 
-**Cache** — só `Ok` é cacheado; `Err` sempre repassa (não fixa falha transitória). Chaveado por `key` (padrão `'default'`).
+**Cache** — only `Ok` is cached; `Err` always passes through (it won't pin a transient failure). Keyed by `key` (default `'default'`).
 
 ## Status
 
-> Em desenvolvimento ativo. Implementado até aqui:
+> Under active development. Implemented so far:
 
-- [x] `core/result.ts` — `Result<T, E>` com métodos
-- [x] `core/task.ts` — `Task`, `task()`, `TaskBuilder` fluente, `AbortError`
-- [x] `combinators/parallel.ts` — fan-out com tupla tipada + concorrência
-- [x] `combinators/pipe.ts` — sequência com passagem de valor
-- [x] `combinators/fallback.ts` — cadeia de degradação
-- [x] `combinators/race.ts` — primeiro a resolver
+- [x] `core/result.ts` — `Result<T, E>` with methods
+- [x] `core/task.ts` — `Task`, `task()`, fluent `TaskBuilder`, `AbortError`
+- [x] `combinators/parallel.ts` — fan-out with typed tuple + concurrency
+- [x] `combinators/pipe.ts` — sequence with value passing
+- [x] `combinators/fallback.ts` — degradation chain
+- [x] `combinators/race.ts` — first to settle
 - [x] `core/context.ts` — `AbortError`, `wait`, `linkSignal`, `safeRun`
 - [x] `middleware/` — `withTimeout`, `withRetry`, `withCache`, `withCircuitBreaker`
 
-Empacotado como **ESM** (`type: module`), zero dependências de runtime. O build (`tsc`) emite `dist/` com `.js` + `.d.ts` e source maps. Testes unitários por módulo em `tests/` (61 casos, `node:test`).
+Packaged as **ESM** (`type: module`), zero runtime dependencies. The build (`tsc`) emits `dist/` with `.js` + `.d.ts` and source maps. Per-module unit tests in `tests/` (61 cases, `node:test`).
 
-Próximos passos: publicação no npm, e o combinador `pipe` acima de 5 passos.
+Next steps: the `pipe` combinator beyond 5 steps.
 
-## Desenvolvimento
+## Development
 
 ```bash
 npm run typecheck   # tsc --noEmit
-npm test            # suíte node:test (via tsx)
-npm run build       # emite dist/ (js + d.ts)
-npm run example     # roda o exemplo Weather Dashboard
+npm test            # node:test suite (via tsx)
+npm run build       # emits dist/ (js + d.ts)
+npm run example     # runs the Weather Dashboard example
 ```
 
-Convenção de commits em [`COMMITS.md`](COMMITS.md) (Conventional Commits + template `.gitmessage`).
+Commit convention in [`COMMITS.md`](COMMITS.md) (Conventional Commits + `.gitmessage` template).
 
-## Licença
+## License
 
 ISC
-# gering

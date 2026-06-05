@@ -1,16 +1,16 @@
 /**
- * race — o primeiro task a resolver vence (seja `Ok` ou `Err`).
+ * race — the first task to settle wins (whether `Ok` or `Err`).
  *
- * Diferente de `fallback` (que tenta em ordem e só avança em falha), `race`
- * dispara todos ao mesmo tempo e devolve o PRIMEIRO a terminar — vencedor por
- * velocidade, não por sucesso. Os perdedores são cancelados via `AbortSignal`.
+ * Unlike `fallback` (which tries in order and only advances on failure), `race`
+ * fires all at once and returns the FIRST to finish — winner by speed, not by
+ * success. The losers are canceled via `AbortSignal`.
  *
- *   const cotacao = await race([
- *     task((s) => fetch(provedorA, { signal: s }).then((r) => r.json())),
- *     task((s) => fetch(provedorB, { signal: s }).then((r) => r.json())),
+ *   const quote = await race([
+ *     task((s) => fetch(providerA, { signal: s }).then((r) => r.json())),
+ *     task((s) => fetch(providerB, { signal: s }).then((r) => r.json())),
  *   ]).unwrap()
  *
- * Útil quando você tem fontes redundantes e quer a resposta mais rápida.
+ * Useful when you have redundant sources and want the fastest response.
  */
 
 import { err } from '../core/result.js'
@@ -18,14 +18,14 @@ import { type TaskLike, TaskBuilder, AbortError, asTask, safeRun } from '../core
 
 export function race<T, E = Error>(tasks: readonly TaskLike<T, E>[]): TaskBuilder<T, E> {
   if (tasks.length === 0) {
-    throw new TypeError('race() requer ao menos um task')
+    throw new TypeError('race() requires at least one task')
   }
   const fns = tasks.map((t) => asTask(t))
 
   return new TaskBuilder<T, E>(async (signal) => {
     if (signal?.aborted) return err<E, T>(new AbortError() as E)
 
-    // Signal interno: abortar cancela os perdedores quando o vencedor resolve.
+    // Internal signal: aborting cancels the losers once the winner settles.
     const controller = new AbortController()
     const onAbort = () => controller.abort()
     signal?.addEventListener('abort', onAbort, { once: true })

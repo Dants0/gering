@@ -1,9 +1,9 @@
 /**
- * withTimeout — cancela o Task se ele não resolver dentro de `ms`.
+ * withTimeout — cancels the Task if it doesn't resolve within `ms`.
  *
- * Encadeia o signal externo com o do timeout (qualquer um aborta). O Task
- * subjacente precisa respeitar o signal para o cancelamento ser efetivo; o
- * resultado vira o Err que o próprio Task produzir ao ser abortado.
+ * Chains the external signal with the timeout's (either one aborts). The
+ * underlying Task must respect the signal for cancellation to take effect; the
+ * result becomes whatever Err the Task itself produces when aborted.
  */
 
 import type { Task } from '../core/task.js'

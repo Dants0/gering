@@ -1,6 +1,6 @@
 {
   "name": "gering-flow",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Composição de chamadas a APIs externas (fan-out, pipe, fallback, race, retry, cache, circuit breaker) — type-safe e agnóstica a transporte, com zero dependências.",
   "type": "module",
   "main": "./dist/index.js",

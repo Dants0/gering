@@ -1,134 +1,134 @@
 /**
- * Exemplo end-to-end (fictício) — "Weather Dashboard".
+ * End-to-end example (fictional) — "Weather Dashboard".
  *
- * Mostra o Gering orquestrando provedores de previsão do tempo com resiliência:
- *   1. fallback + retry + timeout + cache → previsão resiliente de uma cidade
- *   2. parallel                           → várias cidades de uma vez
- *   3. pipe                               → pipeline geocode → previsão → alerta
+ * Shows Gering orchestrating weather providers with resilience:
+ *   1. fallback + retry + timeout + cache → resilient forecast for one city
+ *   2. parallel                           → several cities at once
+ *   3. pipe                               → forecast → detect alert → push
  *
- * Rode com:  npm run example   (ou: npx tsx examples/weather-dashboard.ts)
+ * Run with:  npm run example   (or: npx tsx examples/weather-dashboard.ts)
  *
- * Os "provedores" abaixo são simulações determinísticas — sem rede de verdade —
- * só para você ver cada padrão agindo. Em produção, troque pelos seus fetch/SDK.
+ * The "providers" below are deterministic simulations — no real network — just
+ * so you can see each pattern in action. In production, swap in your fetch/SDK.
  */
 
 import { task, parallel, fallback, pipe } from '../src/index.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Provedores simulados (substitua por chamadas reais de fetch/axios/SDK)
+// Simulated providers (replace with real fetch/axios/SDK calls)
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface Forecast {
-  cidade: string
+  city: string
   tempC: number
-  fonte: string
+  source: string
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-/** OpenSky (primário): cai para Tokyo/Nairobi; em Lisboa falha 2x e acerta na 3ª. */
-let openSkyTentativas = 0
-async function openSkyGet(cidade: string, signal?: AbortSignal): Promise<Forecast> {
+/** OpenSky (primary): down for Tokyo/Nairobi; for Lisbon fails 2x then succeeds (retry). */
+let openSkyAttempts = 0
+async function openSkyGet(city: string, signal?: AbortSignal): Promise<Forecast> {
   await sleep(15)
-  if (signal?.aborted) throw new Error('abortado')
-  if (cidade === 'Tokyo' || cidade === 'Nairobi') throw new Error(`OpenSky: ${cidade} indisponível`)
-  if (cidade === 'Lisboa' && ++openSkyTentativas < 3) throw new Error('OpenSky: 503 transitório')
-  return { cidade, tempC: 18 + cidade.length, fonte: 'OpenSky' }
+  if (signal?.aborted) throw new Error('aborted')
+  if (city === 'Tokyo' || city === 'Nairobi') throw new Error(`OpenSky: ${city} unavailable`)
+  if (city === 'Lisbon' && ++openSkyAttempts < 3) throw new Error('OpenSky: transient 503')
+  return { city, tempC: 18 + city.length, source: 'OpenSky' }
 }
 
-/** MeteoNow (secundário): saudável, exceto Nairobi (também fora). */
-async function meteoNowGet(cidade: string, signal?: AbortSignal): Promise<Forecast> {
+/** MeteoNow (secondary): healthy, except Nairobi (also down). */
+async function meteoNowGet(city: string, signal?: AbortSignal): Promise<Forecast> {
   await sleep(20)
-  if (signal?.aborted) throw new Error('abortado')
-  if (cidade === 'Nairobi') throw new Error(`MeteoNow: ${cidade} indisponível`)
-  return { cidade, tempC: 17 + cidade.length, fonte: 'MeteoNow' }
+  if (signal?.aborted) throw new Error('aborted')
+  if (city === 'Nairobi') throw new Error(`MeteoNow: ${city} unavailable`)
+  return { city, tempC: 17 + city.length, source: 'MeteoNow' }
 }
 
-/** Cache local: só tem Nairobi (último recurso quando tudo cai). */
-async function cacheGet(cidade: string): Promise<Forecast> {
+/** Local cache: only has Nairobi (last resort when everything is down). */
+async function cacheGet(city: string): Promise<Forecast> {
   await sleep(2)
-  if (cidade !== 'Nairobi') throw new Error(`cache: miss para ${cidade}`)
-  return { cidade, tempC: 29, fonte: 'cache (stale)' }
+  if (city !== 'Nairobi') throw new Error(`cache: miss for ${city}`)
+  return { city, tempC: 29, source: 'cache (stale)' }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 1. Previsão resiliente: primário (com retry+timeout+cache) → secundário → cache
+// 1. Resilient forecast: primary (with retry+timeout+cache) → secondary → cache
 // ─────────────────────────────────────────────────────────────────────────────
 
-function previsaoResiliente(cidade: string) {
+function resilientForecast(city: string) {
   return fallback<Forecast>([
-    task((s) => openSkyGet(cidade, s))
+    task((s) => openSkyGet(city, s))
       .retry({ attempts: 3, backoff: 'exponential', delay: 10 })
       .timeout(500)
-      .cache({ ttl: 60_000, key: `weather:${cidade}` }),
-    task((s) => meteoNowGet(cidade, s)).timeout(80),
-    task(() => cacheGet(cidade)),
+      .cache({ ttl: 60_000, key: `weather:${city}` }),
+    task((s) => meteoNowGet(city, s)).timeout(80),
+    task(() => cacheGet(city)),
   ])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2. Pipeline: geocode → previsão → alerta de calor (short-circuit no 1º erro)
+// 2. Pipeline: forecast → heat alert → push (short-circuits on the first error)
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface AlertaCalor {
-  cidade: string
+interface HeatAlert {
+  city: string
   tempC: number
 }
 
-async function detectarAlerta(f: Forecast): Promise<AlertaCalor | null> {
-  // regra fictícia: acima de 28°C dispara alerta de calor
-  return f.tempC > 28 ? { cidade: f.cidade, tempC: f.tempC } : null
+async function detectAlert(f: Forecast): Promise<HeatAlert | null> {
+  // fictional rule: above 28°C triggers a heat alert
+  return f.tempC > 28 ? { city: f.city, tempC: f.tempC } : null
 }
 
-let pushFalhas = 0
-async function enviarPush(alerta: AlertaCalor, signal?: AbortSignal): Promise<string> {
+let pushFailures = 0
+async function sendPush(alert: HeatAlert, signal?: AbortSignal): Promise<string> {
   await sleep(10)
-  if (signal?.aborted) throw new Error('abortado')
-  if (++pushFalhas < 2) throw new Error('Push: indisponível (transitório)')
-  return `alerta de calor enviado para ${alerta.cidade} (${alerta.tempC}°C)`
+  if (signal?.aborted) throw new Error('aborted')
+  if (++pushFailures < 2) throw new Error('Push: unavailable (transient)')
+  return `heat alert sent for ${alert.city} (${alert.tempC}°C)`
 }
 
-function pipelineAlerta(cidade: string) {
+function alertPipeline(city: string) {
   return pipe(
-    previsaoResiliente(cidade),
-    (f) => task(() => detectarAlerta(f)),
-    (alerta) =>
+    resilientForecast(city),
+    (f) => task(() => detectAlert(f)),
+    (alert) =>
       task<string>(async (s) => {
-        if (!alerta) return 'temperatura amena — sem alerta'
-        return enviarPush(alerta, s)
+        if (!alert) return 'mild temperature — no alert'
+        return sendPush(alert, s)
       }).retry({ attempts: 3, delay: 10 }),
   )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Execução
+// Run
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function main() {
-  console.log('━━━ 1. Previsão resiliente por cidade ━━━')
-  for (const cidade of ['Lisboa', 'Tokyo', 'Nairobi']) {
-    const r = await previsaoResiliente(cidade).run()
+  console.log('━━━ 1. Resilient forecast per city ━━━')
+  for (const city of ['Lisbon', 'Tokyo', 'Nairobi']) {
+    const r = await resilientForecast(city).run()
     r.match({
-      ok: (f) => console.log(`  ✔ ${cidade}: ${f.tempC}°C via ${f.fonte}`),
-      err: (e) => console.log(`  ✗ ${cidade}: falhou — ${e.message}`),
+      ok: (f) => console.log(`  ✔ ${city}: ${f.tempC}°C via ${f.source}`),
+      err: (e) => console.log(`  ✗ ${city}: failed — ${e.message}`),
     })
   }
 
-  console.log('\n━━━ 2. Várias cidades em paralelo ━━━')
-  const cidades = ['Lisboa', 'Tokyo', 'Nairobi']
-  const previsoes = await parallel(cidades.map((c) => previsaoResiliente(c))).unwrap()
-  previsoes.forEach((r, i) =>
+  console.log('\n━━━ 2. Several cities in parallel ━━━')
+  const cities = ['Lisbon', 'Tokyo', 'Nairobi']
+  const forecasts = await parallel(cities.map((c) => resilientForecast(c))).unwrap()
+  forecasts.forEach((r, i) =>
     console.log(
       r.isOk()
-        ? `  ✔ ${cidades[i]}: ${r.value.tempC}°C via ${r.value.fonte}`
-        : `  ✗ ${cidades[i]}: ${r.error.message}`,
+        ? `  ✔ ${cities[i]}: ${r.value.tempC}°C via ${r.value.source}`
+        : `  ✗ ${cities[i]}: ${r.error.message}`,
     ),
   )
 
-  console.log('\n━━━ 3. Pipeline de alerta de calor ━━━')
-  for (const cidade of ['Lisboa', 'Nairobi']) {
-    const r = await pipelineAlerta(cidade).run()
-    console.log(r.isOk() ? `  ✔ ${cidade}: ${r.value}` : `  ✗ ${cidade}: ${r.error.message}`)
+  console.log('\n━━━ 3. Heat-alert pipeline ━━━')
+  for (const city of ['Lisbon', 'Nairobi']) {
+    const r = await alertPipeline(city).run()
+    console.log(r.isOk() ? `  ✔ ${city}: ${r.value}` : `  ✗ ${city}: ${r.error.message}`)
   }
 }
 

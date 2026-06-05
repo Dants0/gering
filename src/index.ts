@@ -1,6 +1,6 @@
 /**
- * Gering — composição de chamadas a APIs externas (fan-out, cache, fallback).
- * Agnóstico a transporte: qualquer coisa que retorna uma Promise vira um Task.
+ * Gering — external API call composition (fan-out, cache, fallback).
+ * Transport-agnostic: anything that returns a Promise becomes a Task.
  */
 
 // --- core: Result ---
@@ -26,10 +26,10 @@ export {
   safeRun,
 } from './core/task.js'
 
-// --- core: context (cancelamento) ---
+// --- core: context (cancellation) ---
 export { wait, linkSignal } from './core/context.js'
 
-// --- combinadores ---
+// --- combinators ---
 export { parallel, type ParallelOptions } from './combinators/parallel.js'
 export { fallback } from './combinators/fallback.js'
 export { pipe } from './combinators/pipe.js'

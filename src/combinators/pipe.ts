@@ -1,27 +1,27 @@
 /**
- * pipe — composição sequencial com passagem de valor.
+ * pipe — sequential composition with value passing.
  *
- * O primeiro elemento é um Task (sem entrada). Cada passo seguinte é uma
- * FUNÇÃO que recebe o valor do passo anterior e devolve o próximo Task —
- * encadeando os tipos: V0 → V1 → V2 → ...
+ * The first element is a Task (no input). Each following step is a FUNCTION
+ * that receives the previous step's value and returns the next Task — chaining
+ * the types: V0 → V1 → V2 → ...
  *
- *   const nome = await pipe(
+ *   const name = await pipe(
  *     task(() => api.getUserId()),        // Task<string>
  *     (id) => task(() => api.getUser(id)),// (string) => Task<User>
  *     (user) => task(() => api.getName(user.id)), // (User) => Task<string>
  *   ).unwrap()
  *
- * Short-circuit no primeiro `Err`: se um passo falha, os seguintes não rodam
- * e o pipe devolve esse `Err`. Todos os passos compartilham o tipo de erro `E`.
+ * Short-circuits on the first `Err`: if a step fails, the following ones don't
+ * run and the pipe returns that `Err`. All steps share the error type `E`.
  */
 
 import { type Result, err } from '../core/result.js'
 import { type TaskLike, TaskBuilder, AbortError, asTask, safeRun } from '../core/task.js'
 
-/** Um passo: transforma o valor anterior no próximo Task. */
+/** A step: transforms the previous value into the next Task. */
 type Step<I, O, E> = (input: I) => TaskLike<O, E>
 
-// Overloads tipados: a cadeia V0 → V1 → ... → Vn é verificada passo a passo.
+// Typed overloads: the chain V0 → V1 → ... → Vn is checked step by step.
 export function pipe<V0, E>(head: TaskLike<V0, E>): TaskBuilder<V0, E>
 export function pipe<V0, V1, E>(head: TaskLike<V0, E>, s1: Step<V0, V1, E>): TaskBuilder<V1, E>
 export function pipe<V0, V1, V2, E>(
@@ -58,9 +58,9 @@ export function pipe(
   return new TaskBuilder<unknown, unknown>(async (signal) => {
     let current: Result<unknown, unknown> = await safeRun(asTask(head), signal)
     for (const step of steps) {
-      if (current.isErr()) return current // short-circuit: propaga o Err
+      if (current.isErr()) return current // short-circuit: propagate the Err
       if (signal?.aborted) return err(new AbortError())
-      const next = step(current.value) // current é Ok aqui
+      const next = step(current.value) // current is Ok here
       current = await safeRun(asTask(next), signal)
     }
     return current

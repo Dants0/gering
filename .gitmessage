@@ -1,23 +1,23 @@
-# <tipo>(<escopo>): <descrição imperativa, ≤72 chars, sem ponto final>
+# <type>(<scope>): <imperative description, ≤72 chars, no trailing period>
 #
-# Corpo (opcional): explique o PORQUÊ, não o quê. Quebre em ~72 colunas.
+# Body (optional): explain the WHY, not the what. Wrap at ~72 columns.
 #
-# Rodapé (opcional): BREAKING CHANGE: ... | Refs #123
+# Footer (optional): BREAKING CHANGE: ... | Refs #123
 #
-# ── tipos ────────────────────────────────────────────────────────────
-#   feat      nova funcionalidade pública
-#   fix       correção de bug
-#   refactor  mudança interna sem alterar comportamento
-#   perf      melhoria de performance
-#   docs      README, JSDoc, exemplos
-#   test      adiciona/ajusta testes
-#   build     build, empacotamento, package.json, tsconfig
-#   chore     tarefas auxiliares (deps, configs)
+# ── types ────────────────────────────────────────────────────────────
+#   feat      new public functionality
+#   fix       bug fix
+#   refactor  internal change without altering behavior
+#   perf      performance improvement
+#   docs      README, JSDoc, examples
+#   test      adds/adjusts tests
+#   build     build, packaging, package.json, tsconfig
+#   chore     auxiliary tasks (deps, configs)
 #
-# ── escopos ──────────────────────────────────────────────────────────
+# ── scopes ───────────────────────────────────────────────────────────
 #   core:        result | task | context
 #   combinators: parallel | pipe | fallback | race
 #   middleware:  retry | timeout | cache | circuit-breaker
-#   outros:      index | examples | deps
+#   others:      index | examples | deps
 #
-# Ex.: fix(retry): converte abort durante a espera em Err em vez de lançar
+# e.g.: fix(retry): convert abort during the wait into Err instead of throwing
