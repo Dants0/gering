@@ -1,0 +1,23 @@
+# <tipo>(<escopo>): <descrição imperativa, ≤72 chars, sem ponto final>
+#
+# Corpo (opcional): explique o PORQUÊ, não o quê. Quebre em ~72 colunas.
+#
+# Rodapé (opcional): BREAKING CHANGE: ... | Refs #123
+#
+# ── tipos ────────────────────────────────────────────────────────────
+#   feat      nova funcionalidade pública
+#   fix       correção de bug
+#   refactor  mudança interna sem alterar comportamento
+#   perf      melhoria de performance
+#   docs      README, JSDoc, exemplos
+#   test      adiciona/ajusta testes
+#   build     build, empacotamento, package.json, tsconfig
+#   chore     tarefas auxiliares (deps, configs)
+#
+# ── escopos ──────────────────────────────────────────────────────────
+#   core:        result | task | context
+#   combinators: parallel | pipe | fallback | race
+#   middleware:  retry | timeout | cache | circuit-breaker
+#   outros:      index | examples | deps
+#
+# Ex.: fix(retry): converte abort durante a espera em Err em vez de lançar

@@ -1,24 +1,51 @@
 {
   "name": "gering",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "directories": {
-    "test": "tests"
+  "version": "0.1.0",
+  "description": "Composição de chamadas a APIs externas (fan-out, pipe, fallback, race, retry, cache, circuit breaker) — type-safe e agnóstica a transporte, com zero dependências.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test \"tests/**/*.test.ts\"",
+    "example": "tsx examples/weather-dashboard.ts",
+    "prepublishOnly": "npm run build"
   },
-  "keywords": [],
+  "keywords": [
+    "api",
+    "composition",
+    "orchestration",
+    "fan-out",
+    "fallback",
+    "race",
+    "retry",
+    "circuit-breaker",
+    "cache",
+    "result",
+    "abortsignal",
+    "typescript"
+  ],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
-  "dependencies": {
+  "devDependencies": {
+    "@tsconfig/node24": "^24.0.4",
     "@types/node": "^25.9.1",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3"
-  },
-  "devDependencies": {
-    "@tsconfig/node24": "^24.0.4"
   }
 }

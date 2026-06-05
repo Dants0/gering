@@ -5,10 +5,10 @@
  * o próximo (short-circuit no primeiro sucesso — os seguintes nem rodam). Se
  * todos falharem, devolve o último `Err`.
  *
- *   const fii = await fallback([
- *     task(() => brapi.getFII(t)),       // provider primário
- *     task(() => hgBrasil.getFII(t)),    // secundário
- *     task(() => localCache.get(t)),     // último recurso
+ *   const previsao = await fallback([
+ *     task(() => openSky.getForecast(cidade)),  // provider primário
+ *     task(() => meteoNow.getForecast(cidade)), // secundário
+ *     task(() => localCache.get(cidade)),       // último recurso
  *   ]).unwrap()
  *
  * Todas as alternativas compartilham o mesmo tipo de valor e de erro (são, por

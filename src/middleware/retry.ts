@@ -34,7 +34,12 @@ export function withRetry<T, E>(policy: RetryPolicy | number): (task: Task<T, E>
       if (last.isOk()) return last
       if (attempt < p.attempts - 1) {
         const ms = p.backoff === 'exponential' ? base * factor ** attempt : base
-        await wait(ms, signal)
+        try {
+          await wait(ms, signal)
+        } catch {
+          // signal abortado durante a espera: encerra como Err sem lançar.
+          return err<E, T>(new AbortError() as E)
+        }
       }
     }
     return last

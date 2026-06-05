@@ -6,12 +6,12 @@
  * outras — a orquestração em si nunca falha (E = never), então o que você
  * inspeciona é cada `Result` individual.
  *
- *   const [fii, cot] = await parallel([
- *     task(() => brapi.getFII(t)),     // Task<FII>
- *     task(() => hgBrasil.getCotacao(t)), // Task<Cotacao>
+ *   const [previsao, aqi] = await parallel([
+ *     task(() => openSky.getForecast(cidade)), // Task<Forecast>
+ *     task(() => airIndex.getAQI(cidade)),     // Task<AQI>
  *   ]).unwrap()
- *   // fii:  Result<FII, Error>
- *   // cot:  Result<Cotacao, Error>
+ *   // previsao: Result<Forecast, Error>
+ *   // aqi:      Result<AQI, Error>
  *
  * `concurrency` limita quantas executam simultaneamente (preservando a ordem
  * dos resultados). Sem ele, todas saem de uma vez.

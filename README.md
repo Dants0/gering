@@ -5,9 +5,9 @@ Composição de chamadas a APIs externas para TypeScript/Node.js — **fan-out, 
 Gering resolve, de forma consistente, o que todo projeto reescreve do zero: orquestrar várias chamadas a serviços externos com resiliência e tipos honestos.
 
 ```ts
-const [fii, cotacao] = await parallel([
-  task(() => brapi.getFII(ticker)),
-  task(() => hgBrasil.getCotacao(ticker)),
+const [previsao, qualidadeAr] = await parallel([
+  task(() => openSky.getForecast(cidade)),
+  task(() => airIndex.getAQI(cidade)),
 ]).unwrap()
 ```
 
@@ -131,10 +131,10 @@ const nome = await pipe(
 Tenta cada task **em ordem** e devolve o primeiro `Ok`. Se um falha, passa para o próximo (short-circuit no primeiro sucesso — os seguintes nem executam). Se todos falharem, devolve o **último `Err`**.
 
 ```ts
-const fii = await fallback([
-  task(() => brapi.getFII(ticker)),    // provider primário
-  task(() => hgBrasil.getFII(ticker)), // secundário
-  task(() => localCache.get(ticker)),  // último recurso
+const previsao = await fallback([
+  task(() => openSky.getForecast(cidade)),  // provider primário
+  task(() => meteoNow.getForecast(cidade)), // secundário
+  task(() => localCache.get(cidade)),       // último recurso
 ]).unwrap()
 ```
 
@@ -152,6 +152,49 @@ const cotacao = await race([
 ```
 
 Útil para fontes redundantes onde você quer a resposta mais rápida. Lança em array vazio.
+
+## Exemplo end-to-end
+
+[`examples/weather-dashboard.ts`](examples/weather-dashboard.ts) é um exemplo rodável (cenário fictício "Weather Dashboard") que combina os padrões num fluxo de agregação de previsão do tempo:
+
+```bash
+npm run example
+```
+
+Ele demonstra três situações, cada uma com um provedor caindo de um jeito diferente:
+
+```ts
+// Previsão resiliente: primário (retry + timeout + cache) → secundário → cache local
+function previsaoResiliente(cidade: string) {
+  return fallback<Forecast>([
+    task((s) => openSkyGet(cidade, s))
+      .retry({ attempts: 3, backoff: 'exponential', delay: 10 })
+      .timeout(500)
+      .cache({ ttl: 60_000, key: `weather:${cidade}` }),
+    task((s) => meteoNowGet(cidade, s)).timeout(80),
+    task(() => cacheGet(cidade)),
+  ])
+}
+
+// Várias cidades em paralelo
+const previsoes = await parallel(cidades.map((c) => previsaoResiliente(c))).unwrap()
+
+// Pipeline geocode → previsão → alerta (short-circuit no primeiro erro)
+const alertado = await pipe(
+  previsaoResiliente(cidade),
+  (f) => task(() => detectarAlerta(f)),
+  (alerta) => task((s) => enviarPush(alerta, s)).retry(3),
+).run()
+```
+
+Saída esperada — cada linha mostra um padrão de resiliência salvando o dia (retry, fallback ao secundário, fallback ao cache):
+
+```
+━━━ 1. Previsão resiliente por cidade ━━━
+  ✔ Lisboa:  24°C via OpenSky         (retry: OpenSky falhou 2x, acertou na 3ª)
+  ✔ Tokyo:   22°C via MeteoNow        (fallback: OpenSky fora → secundário)
+  ✔ Nairobi: 29°C via cache (stale)   (fallback: ambos fora → cache local)
+```
 
 ## Middleware
 
@@ -189,14 +232,20 @@ task(fn).use(withTimeout(2000)).use(withRetry(3))
 - [x] `core/context.ts` — `AbortError`, `wait`, `linkSignal`, `safeRun`
 - [x] `middleware/` — `withTimeout`, `withRetry`, `withCache`, `withCircuitBreaker`
 
-Próximos passos: testes unitários por módulo (hoje há um `tests/smoke.ts` cobrindo o caminho feliz de cada peça), build/publish (ESM) e o combinador `pipe` acima de 5 passos.
+Empacotado como **ESM** (`type: module`), zero dependências de runtime. O build (`tsc`) emite `dist/` com `.js` + `.d.ts` e source maps. Testes unitários por módulo em `tests/` (61 casos, `node:test`).
+
+Próximos passos: publicação no npm, e o combinador `pipe` acima de 5 passos.
 
 ## Desenvolvimento
 
 ```bash
-npx tsc --noEmit      # typecheck
-npx tsx tests/smoke.ts # smoke tests
+npm run typecheck   # tsc --noEmit
+npm test            # suíte node:test (via tsx)
+npm run build       # emite dist/ (js + d.ts)
+npm run example     # roda o exemplo Weather Dashboard
 ```
+
+Convenção de commits em [`COMMITS.md`](COMMITS.md) (Conventional Commits + template `.gitmessage`).
 
 ## Licença
 
